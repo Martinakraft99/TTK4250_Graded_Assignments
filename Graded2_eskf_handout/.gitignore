@@ -1,2 +1,2 @@
-*__pycache__
-plots/*
+plots/*.pdf
+*/__pychache__/*
