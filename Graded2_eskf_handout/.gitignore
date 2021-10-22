@@ -1,2 +1,6 @@
 plots/*.pdf
-*/__pycache__
+eskf/datatypes/__pycache__
+eskf/__pycache__
+eskf/solution/__pycache__/
+eskf/utils/__pycache__/
+eskf/solution/pytransform/__pycache__
