@@ -1,5 +1,7 @@
+from math import sqrt
 import numpy as np
 from numpy import ndarray
+from numpy.lib.function_base import average
 import scipy
 from dataclasses import dataclass, field
 from typing import Tuple
@@ -16,6 +18,7 @@ from quaternion import RotationQuaterion
 from cross_matrix import get_cross_matrix
 
 import solution
+import math
 
 
 @dataclass
@@ -69,9 +72,14 @@ class ESKF():
         Returns:
             CorrectedImuMeasurement: corrected IMU measurement
         """
+        
+        # Found by trial and error
+        a_corr = self.accm_correction @ z_imu.acc
+        v_corr = self.gyro_correction @ z_imu.avel
+        ts = z_imu.ts
+        z_corr = CorrectedImuMeasurement(ts, a_corr, v_corr)
 
-        # TODO replace this with your own code
-        z_corr = solution.eskf.ESKF.correct_z_imu(self, x_nom_prev, z_imu)
+        #z_corr = solution.eskf.ESKF.correct_z_imu(self, x_nom_prev, z_imu)
 
         return z_corr
 
@@ -91,10 +99,40 @@ class ESKF():
         Returns:
             x_nom_pred (NominalState): predicted nominal state
         """
+        
+        # Fetch the acceleration and velocity from exisiting data
+        # Uses assumptions from problem description
+        ori_prev = x_nom_prev.ori
+        R = ori_prev.as_rotmat()
+        acc = R @ (z_corr.acc - x_nom_prev.accm_bias) + self.g
+        w = z_corr.avel - x_nom_prev.gyro_bias
+        
+        # Compute the predicted prosition and velocity according to hints
+        T = z_corr.ts - x_nom_prev.ts
+        pos_pred = x_nom_prev.pos + T * x_nom_prev.vel + (T**2 / 2) * acc
+        vel_pred = x_nom_prev.vel + T * acc
+
+        # Compute the predicted quaternion according to hints
+        kappa = T * w
+        kappa_2norm = sqrt(sum(kappa**2))
+        
+        if kappa_2norm == 0:
+            ori_pred = ori_prev
+        else:
+            ori_other = RotationQuaterion(
+                math.cos(kappa_2norm / 2), math.sin(kappa_2norm / 2) * kappa.T / kappa_2norm
+            )
+            ori_pred = ori_prev @ ori_other
+        
+        # Compute the biases from equation (10.50)
+        accm_bias = x_nom_prev.accm_bias
+        gyro_bias = x_nom_prev.gyro_bias
+        
+        x_nom_pred = NominalState(pos_pred, vel_pred, ori_pred, accm_bias, gyro_bias, z_corr.ts)
 
         # TODO replace this with your own code
-        x_nom_pred = solution.eskf.ESKF.predict_nominal(
-            self, x_nom_prev, z_corr)
+        #x_nom_pred = solution.eskf.ESKF.predict_nominal(
+        #    self, x_nom_prev, z_corr)
 
         return x_nom_pred
 
@@ -119,8 +157,21 @@ class ESKF():
             A (ndarray[15,15]): A
         """
 
+        R = x_nom_prev.ori.as_rotmat() 
+        skew_accl = get_cross_matrix(z_corr.acc - x_nom_prev.accm_bias)
+        skew_gyro = get_cross_matrix(z_corr.avel - x_nom_prev.gyro_bias)
+
+        A = np.zeros([15,15])
+        A[block_3x3(0, 1)] = np.eye(3)        
+        A[block_3x3(1, 2)] = -R @ skew_accl 
+        A[block_3x3(2, 2)] = -skew_gyro
+        A[block_3x3(1, 3)] = -R @ self.accm_correction
+        A[block_3x3(2, 4)] = -np.eye(3) @ self.gyro_correction
+        A[block_3x3(3, 3)] = -np.eye(3)
+        A[block_3x3(4, 4)] = -np.eye(3)
+        
         # TODO replace this with your own code
-        A = solution.eskf.ESKF.get_error_A_continous(self, x_nom_prev, z_corr)
+        #A = solution.eskf.ESKF.get_error_A_continous(self, x_nom_prev, z_corr)
 
         return A
 
@@ -140,11 +191,18 @@ class ESKF():
         Args:
             x_nom_prev (NominalState): previous nominal state
         Returns:
-            GQGT (ndarray[15, 15]): G @ Q @ G.T
+            GQGT (ndarray[15, 12]): G @ Q @ G.T
         """
+        
+        R = x_nom_prev.ori.as_rotmat()
+        G = np.zeros([15, 12])
+        G[block_3x3(1, 0)] = -R
+        G[block_3x3(2, 1)] = -np.eye(3)   
+        G[block_3x3(3, 2)] = np.eye(3)  
+        G[block_3x3(4, 3)] = np.eye(3)       
 
-        # TODO replace this with your own code
-        GQGT = solution.eskf.ESKF.get_error_GQGT_continous(self, x_nom_prev)
+        GQGT = G @ self.Q_err @ G.T
+        #GQGT = solution.eskf.ESKF.get_error_GQGT_continous(self, x_nom_prev)
 
         return GQGT
 
