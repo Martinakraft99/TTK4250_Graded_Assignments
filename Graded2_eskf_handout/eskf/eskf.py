@@ -112,12 +112,12 @@ class ESKF():
         w = z_corr.avel - x_nom_prev.gyro_bias
         
         # Compute the predicted prosition and velocity according to hints
-        T = z_corr.ts - x_nom_prev.ts
-        pos_pred = x_nom_prev.pos + T * x_nom_prev.vel + (T**2 / 2) * acc
-        vel_pred = x_nom_prev.vel + T * acc
+        Ts = z_corr.ts - x_nom_prev.ts
+        pos_pred = x_nom_prev.pos + Ts * x_nom_prev.vel + (Ts**2 / 2) * acc
+        vel_pred = x_nom_prev.vel + Ts * acc
 
         # Compute the predicted quaternion according to hints
-        kappa = T * w
+        kappa = Ts * w
         kappa_2norm = sqrt(sum(kappa**2))
         
         if kappa_2norm == 0:
@@ -128,9 +128,9 @@ class ESKF():
             )
             ori_pred = ori_prev @ ori_other
         
-        # Compute the biases from equation (10.50)
-        accm_bias = x_nom_prev.accm_bias
-        gyro_bias = x_nom_prev.gyro_bias
+        # Compute the biases from equation (10.50) This i
+        accm_bias = x_nom_prev.accm_bias - np.eye(3) @ x_nom_prev.accm_bias * self.accm_bias_p * Ts
+        gyro_bias = x_nom_prev.gyro_bias - np.eye(3) @ x_nom_prev.gyro_bias * self.gyro_bias_p * Ts
         
         x_nom_pred = NominalState(pos_pred, vel_pred, ori_pred, accm_bias, gyro_bias, z_corr.ts)
 
@@ -171,8 +171,8 @@ class ESKF():
         A[block_3x3(2, 2)] = -skew_gyro
         A[block_3x3(1, 3)] = -R @ self.accm_correction
         A[block_3x3(2, 4)] = -np.eye(3) @ self.gyro_correction
-        A[block_3x3(3, 3)] = -np.eye(3)
-        A[block_3x3(4, 4)] = -np.eye(3)
+        A[block_3x3(3, 3)] = -np.eye(3) * self.accm_bias_p
+        A[block_3x3(4, 4)] = -np.eye(3) * self.gyro_bias_p
         
         # TODO replace this with your own code
         #A = solution.eskf.ESKF.get_error_A_continous(self, x_nom_prev, z_corr)
@@ -293,6 +293,7 @@ class ESKF():
 
         Ad, GQGTd = self.get_discrete_error_diff(x_nom_prev, z_corr)
 
+        #Bit unsure
         Ts = z_corr.ts
 
         x_err_pred_mean = Ad @ x_err_prev_gauss.mean
@@ -327,11 +328,14 @@ class ESKF():
             x_err_pred (ErrorStateGauss): predicted error state
         """
 
-        # TODO replace this with your own code
-        x_nom_pred, x_err_pred = solution.eskf.ESKF.predict_from_imu(
-            self, x_nom_prev, x_err_gauss, z_imu)
 
-        return x_nom_pred, x_err_pred
+        # TODO replace this with your own code
+        #x_nom_pred, x_err_pred = solution.eskf.ESKF.predict_from_imu(
+        #    self, x_nom_prev, x_err_gauss, z_imu)
+
+        #return x_nom_pred, x_err_pred
+
+        return self.predict_nominal(x_nom_prev,z_imu), self.predict_x_err(x_nom_prev, x_err_gauss, z_imu)
 
     def get_gnss_measurment_jac(self, x_nom: NominalState) -> 'ndarray[3,15]':
         """Get the measurement jacobian, H.
