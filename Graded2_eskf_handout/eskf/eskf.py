@@ -1,6 +1,6 @@
 from math import sqrt
 import numpy as np
-from numpy import ndarray
+from numpy import ndarray, zeros
 from numpy.lib.function_base import average
 import scipy
 from dataclasses import dataclass, field
@@ -13,12 +13,16 @@ from datatypes.measurements import (ImuMeasurement,
                                     GnssMeasurement)
 from datatypes.eskf_states import NominalState, ErrorStateGauss
 from utils.indexing import block_3x3
+from utils.indexing import block_kxk
+
 
 from quaternion import RotationQuaterion
 from cross_matrix import get_cross_matrix
 
 import solution
 import math
+
+
 
 
 @dataclass
@@ -247,9 +251,24 @@ class ESKF():
             GQGTd (ndarray[15, 15]): discrete noise covariance matrix
         """
 
+        A = self.get_error_A_continous(x_nom_prev, z_corr)
+        GQGT = self.get_error_GQGT_continous(x_nom_prev)
+        Ts = z_corr.ts - x_nom_prev.ts
+
+
+        V_10 = np.zeros(GQGT.shape)
+
+        V = np.block([[-A,   GQGT],[V_10, A.T]])*Ts
+
+        VanLoan = self.get_van_loan_matrix(V)
+
+        Ad = VanLoan[block_kxk(1, 1, 15)].T
+        GQGTd = Ad @ VanLoan[block_kxk(0, 1,15)]
+
+
         # TODO replace this with your own code
-        Ad, GQGTd = solution.eskf.ESKF.get_discrete_error_diff(
-            self, x_nom_prev, z_corr)
+        #Ad, GQGTd = solution.eskf.ESKF.get_discrete_error_diff(
+        #    self, x_nom_prev, z_corr)
 
         return Ad, GQGTd
 
