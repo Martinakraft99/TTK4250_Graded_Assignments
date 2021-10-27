@@ -291,9 +291,22 @@ class ESKF():
             x_err_pred (ErrorStateGauss): predicted error state
         """
 
+        Ad, GQGTd = self.get_discrete_error_diff(x_nom_prev, z_corr)
+
+        Ts = z_corr.ts
+
+        x_err_pred_mean = Ad @ x_err_prev_gauss.mean
+
+        x_err_pred_cov = Ad @ x_err_prev_gauss.cov @ Ad.T  + GQGTd
+
+        #dx_err_prev_mean = Ad @ x_err_prev_gauss.mean + GQGT @ n_mean
+
+        #x_err_pred_mean = x_err_prev_gauss.mean + dx_err_prev_mean * Ts
+
+        x_err_pred = ErrorStateGauss(x_err_pred_mean, x_err_pred_cov, Ts)
         # TODO replace this with your own code
-        x_err_pred = solution.eskf.ESKF.predict_x_err(
-            self, x_nom_prev, x_err_prev_gauss, z_corr)
+        #x_err_pred = solution.eskf.ESKF.predict_x_err(
+        #    self, x_nom_prev, x_err_prev_gauss, z_corr)
 
         return x_err_pred
 
