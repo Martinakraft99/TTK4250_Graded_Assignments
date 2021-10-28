@@ -19,6 +19,13 @@ def get_cross_matrix(vec: ndarray) -> ndarray:
     """
 
     # TODO replace this with your own code
-    S = solution.cross_matrix.get_cross_matrix(vec)
+
+    vec = np.array(vec)
+
+    S =  np.array([[0, -vec.item(2), vec.item(1)],
+                   [vec.item(2), 0, -vec.item(0)],
+                   [-vec.item(1), vec.item(0), 0]])
+                     
+    #S = solution.cross_matrix.get_cross_matrix(vec)
 
     return S
