@@ -1,6 +1,6 @@
 from math import sqrt
 import numpy as np
-from numpy import ndarray, zeros
+from numpy import errstate, ndarray, zeros
 from numpy.lib.function_base import average
 import scipy
 from dataclasses import dataclass, field
@@ -349,9 +349,22 @@ class ESKF():
         Returns:
             H (ndarray[3, 15]): [description]
         """
+        Hx = np.block([np.eye(3), np.zeros((3,13))])
 
+        eps1 = x_nom.ori.vec_part[0]
+        eps2 = x_nom.ori.vec_part[1]
+        eps3 = x_nom.ori.vec_part[2]
+        eta  = x_nom.ori.real_part
+
+        Qd1 = -1 * x_nom.ori.vec_part.T
+        Qd2 = get_cross_matrix(x_nom.ori.vec_part) + np.eye(3)*eta
+        Qd = np.block([[Qd1] ,[Qd2]])
+
+        X  = scipy.linalg.block_diag(np.eye(6), Qd, np.eye(6))
+
+        H = Hx @ X
         # TODO replace this with your own code
-        H = solution.eskf.ESKF.get_gnss_measurment_jac(self, x_nom)
+        #H = solution.eskf.ESKF.get_gnss_measurment_jac(self, x_nom)
 
         return H
 
