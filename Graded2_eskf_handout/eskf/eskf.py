@@ -467,13 +467,13 @@ class ESKF():
 
 
         Args:
-            x_nom_prev (NominalState): [description]
-            x_nom_prev (NominalState): [description]
+            x_nom_prev (NominalState): previous nominal state 
+            x_err_prev (ErrorStateGauss): previous error state gaussian
             z_gnss (GnssMeasurement): gnss measurement
 
         Returns:
-            x_nom_inj (NominalState): previous nominal state 
-            x_err_inj (ErrorStateGauss): previous error state
+            x_nom_inj (NominalState): nominal state after injection
+            x_err_inj (ErrorStateGauss): error state gauss after injection
             z_gnss_pred_gauss (MultiVarGaussStamped): predicted gnss 
                 measurement, used for NIS calculations.
         """
