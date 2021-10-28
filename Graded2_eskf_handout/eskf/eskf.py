@@ -166,13 +166,13 @@ class ESKF():
         skew_gyro = get_cross_matrix(z_corr.avel - x_nom_prev.gyro_bias)
 
         A = np.zeros([15,15])
-        A[block_3x3(0, 1)] = np.eye(3)        
-        A[block_3x3(1, 2)] = -R @ skew_accl 
-        A[block_3x3(2, 2)] = -skew_gyro
-        A[block_3x3(1, 3)] = -R @ self.accm_correction
-        A[block_3x3(2, 4)] = -np.eye(3) @ self.gyro_correction
-        A[block_3x3(3, 3)] = -np.eye(3) * self.accm_bias_p
-        A[block_3x3(4, 4)] = -np.eye(3) * self.gyro_bias_p
+        A[block_3x3(0, 1)] = np.eye(3)                              #vel -> pos
+        A[block_3x3(1, 2)] = -R @ skew_accl                         #att -> vel
+        A[block_3x3(2, 2)] = -skew_gyro                             #att -> att
+        A[block_3x3(1, 3)] = -R @ self.accm_correction              #acm -> vel, with bias
+        A[block_3x3(2, 4)] = -np.eye(3) @ self.gyro_correction      #gyr -> att, with bias
+        A[block_3x3(3, 3)] = -np.eye(3) * self.accm_bias_p          #acm -> acm
+        A[block_3x3(4, 4)] = -np.eye(3) * self.gyro_bias_p          #gyr -> gyr
         
         # TODO replace this with your own code
         #A = solution.eskf.ESKF.get_error_A_continous(self, x_nom_prev, z_corr)
@@ -335,7 +335,9 @@ class ESKF():
 
         #return x_nom_pred, x_err_pred
 
-        return self.predict_nominal(x_nom_prev,z_imu), self.predict_x_err(x_nom_prev, x_err_gauss, z_imu)
+        z_cor = self.correct_z_imu(x_nom_prev, z_imu)
+
+        return self.predict_nominal(x_nom_prev,z_cor), self.predict_x_err(x_nom_prev, x_err_gauss, z_cor)
 
     def get_gnss_measurment_jac(self, x_nom: NominalState) -> 'ndarray[3,15]':
         """Get the measurement jacobian, H.
