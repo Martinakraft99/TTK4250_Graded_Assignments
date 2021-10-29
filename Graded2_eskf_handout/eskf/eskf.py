@@ -78,8 +78,8 @@ class ESKF():
         """
         
         # Found by trial and error
-        a_corr = self.accm_correction @ z_imu.acc
-        v_corr = self.gyro_correction @ z_imu.avel
+        a_corr = self.accm_correction @ (z_imu.acc - x_nom_prev.accm_bias)
+        v_corr = self.gyro_correction @ (z_imu.avel - x_nom_prev.gyro_bias)
         ts = z_imu.ts
         z_corr = CorrectedImuMeasurement(ts, a_corr, v_corr)
 
@@ -129,14 +129,17 @@ class ESKF():
             ori_pred = ori_prev @ ori_other
         
         # Compute the biases from equation (10.50) This i
-        accm_bias = x_nom_prev.accm_bias - np.eye(3) @ x_nom_prev.accm_bias * self.accm_bias_p * Ts
-        gyro_bias = x_nom_prev.gyro_bias - np.eye(3) @ x_nom_prev.gyro_bias * self.gyro_bias_p * Ts
+        #accm_bias = x_nom_prev.accm_bias - np.eye(3) @ x_nom_prev.accm_bias * self.accm_bias_p * Ts
+        #gyro_bias = x_nom_prev.gyro_bias - np.eye(3) @ x_nom_prev.gyro_bias * self.gyro_bias_p * Ts
+
+        accm_bias = x_nom_prev.accm_bias * np.exp(-self.accm_bias_p*Ts)
+        gyro_bias = x_nom_prev.gyro_bias * np.exp(-self.gyro_bias_p*Ts)
         
         x_nom_pred = NominalState(pos_pred, vel_pred, ori_pred, accm_bias, gyro_bias, z_corr.ts)
 
         # TODO replace this with your own code
-        #x_nom_pred = solution.eskf.ESKF.predict_nominal(
-        #    self, x_nom_prev, z_corr)
+        x_nom_pred = solution.eskf.ESKF.predict_nominal(
+            self, x_nom_prev, z_corr)
 
         return x_nom_pred
 
@@ -175,7 +178,7 @@ class ESKF():
         A[block_3x3(4, 4)] = -np.eye(3) * self.gyro_bias_p          #gyr -> gyr
         
         # TODO replace this with your own code
-        #A = solution.eskf.ESKF.get_error_A_continous(self, x_nom_prev, z_corr)
+        A = solution.eskf.ESKF.get_error_A_continous(self, x_nom_prev, z_corr)
 
         return A
 
