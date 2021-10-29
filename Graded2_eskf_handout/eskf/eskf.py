@@ -352,20 +352,17 @@ class ESKF():
         Returns:
             H (ndarray[3, 15]): [description]
         """
+        antenna = x_nom.ori.as_rotmat() @ get_cross_matrix(self.lever_arm)
         Hx = np.block([np.eye(3), np.zeros((3,13))])
 
-        eps1 = x_nom.ori.vec_part[0]
-        eps2 = x_nom.ori.vec_part[1]
-        eps3 = x_nom.ori.vec_part[2]
-        eta  = x_nom.ori.real_part
-
         Qd1 = -1 * x_nom.ori.vec_part.T
-        Qd2 = get_cross_matrix(x_nom.ori.vec_part) + np.eye(3)*eta
+        Qd2 = get_cross_matrix(x_nom.ori.vec_part) + np.eye(3)*x_nom.ori.real_part
         Qd = np.block([[Qd1] ,[Qd2]])
 
         X  = scipy.linalg.block_diag(np.eye(6), Qd, np.eye(6))
 
         H = Hx @ X
+        H[block_3x3(0,2)] = -antenna
         # TODO replace this with your own code
         #H = solution.eskf.ESKF.get_gnss_measurment_jac(self, x_nom)
 
