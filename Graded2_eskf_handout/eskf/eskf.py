@@ -165,8 +165,8 @@ class ESKF():
         """
 
         R = x_nom_prev.ori.as_rotmat() 
-        skew_accl = get_cross_matrix(z_corr.acc - x_nom_prev.accm_bias)
-        skew_gyro = get_cross_matrix(z_corr.avel - x_nom_prev.gyro_bias)
+        skew_accl = get_cross_matrix(z_corr.acc)
+        skew_gyro = get_cross_matrix(z_corr.avel)
 
         A = np.zeros([15,15])
         A[block_3x3(0, 1)] = np.eye(3)                              #vel -> pos
@@ -178,7 +178,7 @@ class ESKF():
         A[block_3x3(4, 4)] = -np.eye(3) * self.gyro_bias_p          #gyr -> gyr
         
         # TODO replace this with your own code
-        A = solution.eskf.ESKF.get_error_A_continous(self, x_nom_prev, z_corr)
+        #A = solution.eskf.ESKF.get_error_A_continous(self, x_nom_prev, z_corr)
 
         return A
 
