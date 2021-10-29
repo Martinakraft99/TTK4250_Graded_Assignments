@@ -483,10 +483,19 @@ class ESKF():
             x_nom_inj (NominalState): nominal state after injection
             x_err_inj (ErrorStateGauss): error state gaussian after injection
         """
+        x_nom_inj = x_nom_prev
+        x_nom_inj.pos = x_nom_prev.pos + x_err_upd.pos
+        x_nom_inj.vel = x_nom_prev.vel + x_err_upd.vel
+        x_nom_inj.ori = get_cross_matrix(x_nom_prev.ori.as_avec()) @ x_err_upd.avec
+        x_nom_inj.accm_bias = x_nom_prev.accm_bias + x_err_upd.accm_bias
+        x_nom_inj.gyro_bias = x_nom_prev.gyro_bias + x_err_upd.gyro_bias
 
+
+        x_err_inj = x_err_upd
+        x_err_inj.mean = np.zeros(15,)
         # TODO replace this with your own code
-        x_nom_inj, x_err_inj = solution.eskf.ESKF.inject(
-            self, x_nom_prev, x_err_upd)
+        #x_nom_inj, x_err_inj = solution.eskf.ESKF.inject(
+        #    self, x_nom_prev, x_err_upd)
 
         return x_nom_inj, x_err_inj
 
