@@ -445,11 +445,25 @@ class ESKF():
         Returns:
             x_err_upd_gauss (ErrorStateGauss): updated error state gaussian
         """
+        H = self.get_gnss_measurment_jac(x_nom)
+        R = self.get_gnss_cov(z_gnss)
+        S = R + H @ x_err.cov @ H.T
+        P = x_err.cov
+        W = x_err.cov @ H.T @ (np.linalg.inv(S))
+
+        I_WH = np.eye(*P.shape) - W @ H
+        P_upd = (I_WH @ P @ I_WH.T + W @ R @ W.T)
+        
+        x_err_upd_gauss_cov  = P_upd
+
+        x_err_upd_gauss_mean = W@((z_gnss.pos-x_nom.pos -x_nom.ori.as_rotmat() @ self.lever_arm) 
+            - H @ x_err.mean)
+        
+        x_err_upd_gauss = ErrorStateGauss(x_err_upd_gauss_mean,x_err_upd_gauss_cov,z_gnss.ts)
 
         # TODO replace this with your own code
-        x_err_upd_gauss = solution.eskf.ESKF.get_x_err_upd(
-            self, x_nom, x_err, z_gnss_pred_gauss, z_gnss)
-
+        #x_err_upd_gauss = solution.eskf.ESKF.get_x_err_upd(
+        #    self, x_nom, x_err, z_gnss_pred_gauss, z_gnss)
         return x_err_upd_gauss
 
     def inject(self,
