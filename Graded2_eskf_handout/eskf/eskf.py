@@ -108,8 +108,8 @@ class ESKF():
         # Uses assumptions from problem description
         ori_prev = x_nom_prev.ori
         R = ori_prev.as_rotmat()
-        acc = R @ (z_corr.acc - x_nom_prev.accm_bias) + self.g
-        w = z_corr.avel - x_nom_prev.gyro_bias
+        acc = R @ z_corr.acc + self.g
+        w = z_corr.avel
         
         # Compute the predicted prosition and velocity according to hints
         Ts = z_corr.ts - x_nom_prev.ts
@@ -138,8 +138,8 @@ class ESKF():
         x_nom_pred = NominalState(pos_pred, vel_pred, ori_pred, accm_bias, gyro_bias, z_corr.ts)
 
         # TODO replace this with your own code
-        x_nom_pred = solution.eskf.ESKF.predict_nominal(
-            self, x_nom_prev, z_corr)
+        #x_nom_pred = solution.eskf.ESKF.predict_nominal(
+        #    self, x_nom_prev, z_corr)
 
         return x_nom_pred
 
