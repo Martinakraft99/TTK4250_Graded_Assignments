@@ -1,3 +1,4 @@
+from copy import deepcopy
 from math import sqrt
 import numpy as np
 from numpy import errstate, ndarray, zeros
@@ -483,16 +484,24 @@ class ESKF():
             x_nom_inj (NominalState): nominal state after injection
             x_err_inj (ErrorStateGauss): error state gaussian after injection
         """
-        x_nom_inj = x_nom_prev
+        x_nom_inj = deepcopy(x_nom_prev)
         x_nom_inj.pos = x_nom_prev.pos + x_err_upd.pos
         x_nom_inj.vel = x_nom_prev.vel + x_err_upd.vel
-        x_nom_inj.ori = get_cross_matrix(x_nom_prev.ori.as_avec()) @ x_err_upd.avec
+        t3 = RotationQuaterion(1,x_err_upd.avec/2)
+        x_nom_inj.ori = x_nom_prev.ori.multiply(t3)
+        norm = sqrt(x_nom_inj.ori.real_part**2 + x_nom_inj.ori.vec_part.T @ x_nom_inj.ori.vec_part )
+        x_nom_inj.ori = RotationQuaterion.from_euler((x_nom_inj.ori.as_euler())/norm)
         x_nom_inj.accm_bias = x_nom_prev.accm_bias + x_err_upd.accm_bias
         x_nom_inj.gyro_bias = x_nom_prev.gyro_bias + x_err_upd.gyro_bias
 
 
-        x_err_inj = x_err_upd
+        G = np.eye(15)
+        G[block_kxk(2,2,3)] = np.eye(3) - get_cross_matrix(0.5*x_err_upd.avec)
+        x_err_inj = deepcopy(x_err_upd)
         x_err_inj.mean = np.zeros(15,)
+        x_err_inj.cov = G @ x_err_inj.cov @ G.T
+
+
         # TODO replace this with your own code
         #x_nom_inj, x_err_inj = solution.eskf.ESKF.inject(
         #    self, x_nom_prev, x_err_upd)
