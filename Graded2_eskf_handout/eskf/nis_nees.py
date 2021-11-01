@@ -1,7 +1,8 @@
 import numpy as np
-from numpy import SHIFT_OVERFLOW, ndarray, zeros
+from numpy import SHIFT_OVERFLOW, float128, float64, ndarray, zeros
 from typing import Sequence, Optional
-from Graded2_eskf_handout.eskf.eskf import ESKF
+#from Graded2_eskf_handout.eskf.eskf import ESKF
+from utils.indexing import block_kxk
 
 from datatypes.measurements import GnssMeasurement
 from datatypes.eskf_states import NominalState, ErrorStateGauss
@@ -89,12 +90,10 @@ def get_NEES(error: 'ndarray[15]',
     P = x_err.cov
 
     if(marginal_idxs != None):
-        P_masked = np.zeros(len(err_vec),)
-
-        for k in marginal_idxs:
-            P_masked[k] = 1/P[k,k]
+        P_masked = P[block_kxk(int(marginal_idxs[0]/len(marginal_idxs)) ,int(marginal_idxs[0]/len(marginal_idxs)), len(marginal_idxs))]
+        err_vec_masked = err_vec[marginal_idxs[0]:marginal_idxs[-1]+1]
         
-        NEES = err_vec.T @ (P_masked * err_vec)
+        NEES = err_vec_masked.T @ np.linalg.inv(P_masked) @ err_vec_masked
         
     else:
 
