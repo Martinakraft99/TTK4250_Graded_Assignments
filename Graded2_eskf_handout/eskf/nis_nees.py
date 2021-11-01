@@ -1,6 +1,8 @@
 import numpy as np
-from numpy import ndarray
+from numpy import SHIFT_OVERFLOW, float128, float64, ndarray, zeros
 from typing import Sequence, Optional
+#from Graded2_eskf_handout.eskf.eskf import ESKF
+from utils.indexing import block_kxk
 
 from datatypes.measurements import GnssMeasurement
 from datatypes.eskf_states import NominalState, ErrorStateGauss
@@ -25,8 +27,21 @@ def get_NIS(z_gnss: GnssMeasurement,
         NIS (float): NIS value
     """
 
+    v = z_gnss.pos - z_gnss_pred_gauss.mean
+
+    S = z_gnss_pred_gauss.cov
+
+    if(marginal_idxs != None):
+        S_new = np.zeros((len(v),))
+        for k in marginal_idxs:
+            S_new[k] = 1/S[k,k]
+        NIS = v.T @ (S_new * v)
+
+    else:
+        NIS = v.T @ np.linalg.inv(S) @ v
+
     # TODO replace this with your own code
-    NIS = solution.nis_nees.get_NIS(z_gnss, z_gnss_pred_gauss, marginal_idxs)
+    #NIS = solution.nis_nees.get_NIS(z_gnss, z_gnss_pred_gauss, marginal_idxs)
 
     return NIS
 
@@ -41,9 +56,17 @@ def get_error(x_true: NominalState,
     Returns:
         error (ndarray[15]): difference between x_true and x_nom. 
     """
+    error = np.zeros(15,)
+    error[0:3] = x_true.pos - x_nom.pos
+    error[3:6] = x_true.vel - x_nom.vel
+    err_quat = (x_nom.ori.conjugate()).multiply(x_true.ori)
+    error[6:9] = err_quat.as_avec()
+    error[9:12] = x_true.accm_bias - x_nom.accm_bias
+    error[12:16] = x_true.gyro_bias - x_nom.gyro_bias
 
+    
     # TODO replace this with your own code
-    error = solution.nis_nees.get_error(x_true, x_nom)
+    #error = solution.nis_nees.get_error(x_true, x_nom)
 
     return error
 
@@ -63,9 +86,21 @@ def get_NEES(error: 'ndarray[15]',
     Returns:
         NEES (float): NEES value
     """
+    err_vec = x_err.mean - error
+    P = x_err.cov
+
+    if(marginal_idxs != None):
+        P_masked = P[block_kxk(int(marginal_idxs[0]/len(marginal_idxs)) ,int(marginal_idxs[0]/len(marginal_idxs)), len(marginal_idxs))]
+        err_vec_masked = err_vec[marginal_idxs[0]:marginal_idxs[-1]+1]
+        
+        NEES = err_vec_masked.T @ np.linalg.inv(P_masked) @ err_vec_masked
+        
+    else:
+
+        NEES = (err_vec).T @ np.linalg.inv(P) @ (err_vec) 
 
     # TODO replace this with your own code
-    NEES = solution.nis_nees.get_NEES(error, x_err, marginal_idxs)
+    #NEES = solution.nis_nees.get_NEES(error, x_err, marginal_idxs)
 
     return NEES
 
