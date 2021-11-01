@@ -28,16 +28,17 @@ def get_NIS(z_gnss: GnssMeasurement,
 
     v = z_gnss.pos - z_gnss_pred_gauss.mean
 
+    S = z_gnss_pred_gauss.cov
+
     if(marginal_idxs != None):
         S_new = np.zeros((len(v),))
-        S = z_gnss_pred_gauss.cov
         for k in marginal_idxs:
             S_new[k] = 1/S[k,k]
         NIS = v.T @ (S_new * v)
 
     else:
-        NIS = v.T @ np.linalg.inv(z_gnss_pred_gauss.cov) @ v
-        
+        NIS = v.T @ np.linalg.inv(S) @ v
+
     # TODO replace this with your own code
     #NIS = solution.nis_nees.get_NIS(z_gnss, z_gnss_pred_gauss, marginal_idxs)
 
@@ -54,14 +55,15 @@ def get_error(x_true: NominalState,
     Returns:
         error (ndarray[15]): difference between x_true and x_nom. 
     """
-    err_p = x_true.pos - x_nom.pos
-    err_v = x_true.vel - x_nom.vel
-    err_ori = [0,0,0]       #TODO Fix
-    err_accm_bias = x_true.accm_bias - x_nom.accm_bias
-    err_gyro_bias = x_true.gyro_bias - x_nom.gyro_bias
+    error = np.zeros(15,)
+    error[0:3] = x_true.pos - x_nom.pos
+    error[3:6] = x_true.vel - x_nom.vel
+    err_quat = (x_nom.ori.conjugate()).multiply(x_true.ori)
+    error[6:9] = err_quat.as_avec()
+    error[9:12] = x_true.accm_bias - x_nom.accm_bias
+    error[12:16] = x_true.gyro_bias - x_nom.gyro_bias
 
-    error = [err_p, err_v,err_ori, err_accm_bias, err_gyro_bias]
-
+    
     # TODO replace this with your own code
     #error = solution.nis_nees.get_error(x_true, x_nom)
 
@@ -84,15 +86,19 @@ def get_NEES(error: 'ndarray[15]',
         NEES (float): NEES value
     """
     err_vec = x_err.mean - error
+    P = x_err.cov
+
     if(marginal_idxs != None):
-        mask = np.zeros(len(err_vec),)
+        P_masked = np.zeros(len(err_vec),)
 
         for k in marginal_idxs:
-            mask[k] = 1
+            P_masked[k] = 1/P[k,k]
         
-        err_vec = err_vec * mask
+        NEES = err_vec.T @ (P_masked * err_vec)
+        
+    else:
 
-    NEES = (err_vec).T @ np.linalg.inv(x_err.cov) @ (err_vec) 
+        NEES = (err_vec).T @ np.linalg.inv(P) @ (err_vec) 
 
     # TODO replace this with your own code
     #NEES = solution.nis_nees.get_NEES(error, x_err, marginal_idxs)
