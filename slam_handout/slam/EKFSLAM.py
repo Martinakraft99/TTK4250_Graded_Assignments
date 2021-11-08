@@ -69,10 +69,15 @@ class EKFSLAM:
             The Jacobian of f wrt. x.
         """
         # TODO replace this with your own code
-        Fx = solution.EKFSLAM.EKFSLAM.Fx(self, x, u)
-        return Fx
+        #Fx = solution.EKFSLAM.EKFSLAM.Fx(self, x, u)
 
-        Fx = None  # TODO, eq (11.13)
+        us = u[0]
+        v = u[1]
+        psi = wrapToPi(x[2])
+
+        Fx = np.eye(3)  # TODO, eq (11.13)
+        Fx[(0,2)] = -us*sin(psi) - v*cos(psi)
+        Fx[(1,2)] = us*cos(psi) - v*sin(psi)
 
         return Fx
 
