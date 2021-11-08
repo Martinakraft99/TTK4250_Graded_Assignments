@@ -97,10 +97,16 @@ class EKFSLAM:
             The Jacobian of f wrt. u.
         """
         # TODO replace this with your own code
-        Fu = solution.EKFSLAM.EKFSLAM.Fu(self, x, u)
-        return Fu
+        #Fu = solution.EKFSLAM.EKFSLAM.Fu(self, x, u)
 
-        Fu = None  # TODO, eq (11.14)
+        psi = wrapToPi(x[2])
+
+        Fu = np.eye(3)  # TODO, eq (11.14)
+
+        Fu[(0,0)]   =   cos(psi)
+        Fu[(1,1)]   =   cos(psi)
+        Fu[(0,1)]   =   -sin(psi)
+        Fu[(1,0)]   =   sin(psi)
 
         return Fu
 
