@@ -1,9 +1,10 @@
 from typing import Tuple
 import numpy as np
-from numpy import ndarray
+from numpy import cos,sin, ndarray
 from dataclasses import dataclass, field
 from scipy.linalg import block_diag
 import scipy.linalg as la
+from slam_handout.slam.utils import wrapToPi
 from utils import rotmat2d
 from JCBB import JCBB
 import utils
@@ -33,12 +34,22 @@ class EKFSLAM:
         np.ndarray, shape = (3,)
             the predicted state
         """
-        # TODO replace this with your own code
-        xpred = solution.EKFSLAM.EKFSLAM.f(self, x, u)
-        return xpred
+        xs = x[0]
+        y = x[1]
+        psi = wrapToPi(x[2])
+        us = u[0]
+        v = u[1]
+        phi = wrapToPi(u[2])
+        
 
+        # TODO replace this with your own code
+        #xpred = solution.EKFSLAM.EKFSLAM.f(self, x, u)
+        
         # TODO, eq (11.7). Should wrap heading angle between (-pi, pi), see utils.wrapToPi
-        xpred = None
+        xpred = np.zeros(3,)
+        xpred[0] = xs + us*cos(psi) - v*sin(psi)
+        xpred[1] = y + us*sin(psi) + v*cos(psi)
+        xpred[2] = psi + phi
 
         return xpred
 
