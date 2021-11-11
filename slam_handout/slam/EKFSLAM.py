@@ -1,6 +1,6 @@
 from typing import Tuple
 import numpy as np
-from numpy import cos,sin, ndarray
+from numpy import cos,sin, ndarray, sqrt
 from dataclasses import dataclass, field
 from scipy.linalg import block_diag
 import scipy.linalg as la
@@ -10,6 +10,12 @@ from JCBB import JCBB
 import utils
 import solution
 
+def EucNorm2DVecs(vec: ndarray) ->  np.ndarray:
+    m = len(vec[1])
+    norms = np.zeros(m)
+    for i in range(m):
+        norms[i] = np.sqrt(vec[0][i]**2 + vec[1][i]**2)
+    return norms
 
 @dataclass
 class EKFSLAM:
@@ -129,8 +135,7 @@ class EKFSLAM:
         Tuple[np.ndarray, np.ndarray], shapes= (3 + 2*#landmarks,), (3 + 2*#landmarks,)*2
             predicted mean and covariance of eta.
         """
-        etapred, P = solution.EKFSLAM.EKFSLAM.predict(self, eta, P, z_odo)
-        return etapred, P
+        #etapred, P = solution.EKFSLAM.EKFSLAM.predict(self, eta, P, z_odo)
 
         # check inout matrix
         assert np.allclose(P, P.T), "EKFSLAM.predict: not symmetric P input"
@@ -142,21 +147,33 @@ class EKFSLAM:
         ), "EKFSLAM.predict: input eta and P shape do not match"
         etapred = np.empty_like(eta)
 
+        u = z_odo
         x = eta[:3]
-        etapred[:3] = None  # TODO robot state prediction
-        etapred[3:] = None  # TODO landmarks: no effect
+        etapred[:3] = self.f(x,u)  # TODO robot state prediction
+        etapred[3:] = etapred[3:]   # TODO landmarks: no effect
 
-        Fx = None  # TODO
-        Fu = None  # TODO
+        Fx = self.Fx(x,u)  # TODO
+        Fu = self.Fu(x,u)  # TODO
+        
+        m = int((len(eta)-3)/2)     #landmarks
 
+        #G = np.block[[np.eye(3)][np.zeros((2*m,3))]]
+        Gs = np.eye(3)
+        Gm = np.zeros((2*m,3))
+        
         # evaluate covariance prediction in place to save computation
         # only robot state changes, so only rows and colums of robot state needs changing
         # cov matrix layout:
         # [[P_xx, P_xm],
         # [P_mx, P_mm]]
-        P[:3, :3] = None  # TODO robot cov prediction
-        P[:3, 3:] = None  # TODO robot-map covariance prediction
-        P[3:, :3] = None  # TODO map-robot covariance: transpose of the above
+
+        P[:3, :3] = Fx @ P[:3, :3] @ Fx.T + Gs @ self.Q @ Gs.T  # TODO robot cov prediction Pxx
+        if(len(eta) > 3): #We have landmarks
+
+            Pxm =  Fx @ P[:3, 3:] + self.Q @ Gm.T 
+                        
+            P[:3, 3:] =  Pxm  # TODO robot-map covariance prediction Pxm
+            P[3:, :3] = Pxm.T  # TODO map-robot covariance: transpose of the above Pmx
 
         assert np.allclose(P, P.T), "EKFSLAM.predict: not symmetric P"
         assert np.all(
@@ -183,8 +200,8 @@ class EKFSLAM:
         """
 
         # TODO replace this with your own code
-        zpred = solution.EKFSLAM.EKFSLAM.h(self, eta)
-        return zpred
+        #zpred = solution.EKFSLAM.EKFSLAM.h(self, eta)
+        #return zpred
 
         # extract states and map
         x = eta[0:3]
@@ -195,12 +212,16 @@ class EKFSLAM:
 
         # None as index ads an axis with size 1 at that position.
         # Numpy broadcasts size 1 dimensions to any size when needed
-        delta_m = None  # TODO, relative position of landmark to sensor on robot in world frame
+        p_vx = x[0] * np.ones((1,len(m[1])))
+        p_vy = x[1] * np.ones((1,len(m[1])))
+        p_v = np.vstack([p_vx, p_vy])
+
+        delta_m = m - p_v # TODO, relative position of landmark to sensor on robot in world frame
 
         # TODO, predicted measurements in cartesian coordinates, beware sensor offset for VP
-        zpredcart = None
+        zpredcart = Rot @ delta_m
 
-        zpred_r = None  # TODO, ranges
+        zpred_r =  EucNorm2DVecs(delta_m)   # TODO, ranges
         zpred_theta = None  # TODO, bearings
         zpred = None  # TODO, the two arrays above stacked on top of each other vertically like
         # [ranges;
