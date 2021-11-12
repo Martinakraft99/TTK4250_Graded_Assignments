@@ -215,7 +215,12 @@ class EKFSLAM:
         p_vy = x[1] * np.ones((1,len(m[1])))
         p_v = np.vstack([p_vx, p_vy])
 
-        delta_m = m - p_v # TODO, relative position of landmark to sensor on robot in world frame
+        offset = rotmat2d(x[2])@self.sensor_offset
+        offsetx = offset[0] * np.ones((1,len(m[1])))
+        offsety = offset[1] * np.ones((1,len(m[1])))
+        offset_v = np.vstack([offsetx, offsety])
+
+        delta_m = m - p_v - offset_v  # TODO, relative position of landmark to sensor on robot in world frame
 
         # TODO, predicted measurements in cartesian coordinates, beware sensor offset for VP
         zpredcart = Rot @ delta_m 
