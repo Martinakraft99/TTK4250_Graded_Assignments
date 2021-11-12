@@ -10,12 +10,11 @@ from JCBB import JCBB
 import utils
 import solution
 
-def EucNorm2DVecs(vec: ndarray) ->  np.ndarray:
-    m = len(vec[1])
-    norms = np.zeros(m)
-    for i in range(m):
-        norms[i] = np.sqrt(vec[0][i]**2 + vec[1][i]**2)
-    return norms
+
+def cart2pol(x, y):
+    rho = np.sqrt(x**2 + y**2)
+    phi = np.arctan2(y, x)
+    return(rho, phi)
 
 @dataclass
 class EKFSLAM:
@@ -150,7 +149,7 @@ class EKFSLAM:
         u = z_odo
         x = eta[:3]
         etapred[:3] = self.f(x,u)  # TODO robot state prediction
-        etapred[3:] = etapred[3:]   # TODO landmarks: no effect
+        etapred[3:] = eta[3:]   # TODO landmarks: no effect
 
         Fx = self.Fx(x,u)  # TODO
         Fu = self.Fu(x,u)  # TODO
@@ -167,10 +166,10 @@ class EKFSLAM:
         # [[P_xx, P_xm],
         # [P_mx, P_mm]]
 
-        P[:3, :3] = Fx @ P[:3, :3] @ Fx.T + Gs @ self.Q @ Gs.T  # TODO robot cov prediction Pxx
-        if(len(eta) > 3): #We have landmarks
+        P[:3, :3] = Fx @ P[:3, :3] @ Fx.T + Fu @ self.Q @ Fu.T  # TODO robot cov prediction Pxx
+        if(m): #We have landmarks
 
-            Pxm =  Fx @ P[:3, 3:] + self.Q @ Gm.T 
+            Pxm =  Fx @ P[:3, 3:] #+ self.Q @ Gm.T 
                         
             P[:3, 3:] =  Pxm  # TODO robot-map covariance prediction Pxm
             P[3:, :3] = Pxm.T  # TODO map-robot covariance: transpose of the above Pmx
@@ -219,11 +218,21 @@ class EKFSLAM:
         delta_m = m - p_v # TODO, relative position of landmark to sensor on robot in world frame
 
         # TODO, predicted measurements in cartesian coordinates, beware sensor offset for VP
-        zpredcart = Rot @ delta_m
+        zpredcart = Rot @ delta_m 
+        n_landmarks = len(zpredcart[0])
+        zpred_r = np.zeros(n_landmarks)
+        zpred_theta = np.zeros(n_landmarks)
+        zpred = np.zeros(2*n_landmarks)
 
-        zpred_r =  EucNorm2DVecs(delta_m)   # TODO, ranges
-        zpred_theta = None  # TODO, bearings
-        zpred = None  # TODO, the two arrays above stacked on top of each other vertically like
+        for i in range(n_landmarks):
+            cx = zpredcart[0][i]
+            cy = zpredcart[1][i]
+            zpred_r[i], zpred_theta[i] = cart2pol(cx,cy)
+            zpred[2*i] = zpred_r[i]
+            zpred[2*i+1] = wrapToPi(zpred_theta[i])
+        #zpred_r =  EucNorm2DVecs(delta_m)   # TODO, ranges
+        #zpred_theta = None  # TODO, bearings
+        #zpred = None  # TODO, the two arrays above stacked on top of each other vertically like
         # [ranges;
         #  bearings]
         # into shape (2, #lmrk)
