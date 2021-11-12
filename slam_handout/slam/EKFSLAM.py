@@ -1,6 +1,6 @@
 from typing import Tuple
 import numpy as np
-from numpy import cos,sin, ndarray, sqrt
+from numpy import cos, float64,sin, ndarray, sqrt
 from dataclasses import dataclass, field
 from scipy.linalg import block_diag
 import scipy.linalg as la
@@ -15,6 +15,9 @@ def cart2pol(x, y):
     rho = np.sqrt(x**2 + y**2)
     phi = np.arctan2(y, x)
     return(rho, phi)
+
+def EucNorm2Dvec(vec: ndarray) -> float64:
+    return np.sqrt(vec[0]**2 + vec[1]**2) 
 
 @dataclass
 class EKFSLAM:
@@ -264,8 +267,8 @@ class EKFSLAM:
         np.ndarray, shape=(2 * #landmarks, 3 + 2 * #landmarks)
             the jacobian of h wrt. eta.
         """
-        H = solution.EKFSLAM.EKFSLAM.h_jac(self, eta)
-        return H
+        #H = solution.EKFSLAM.EKFSLAM.h_jac(self, eta)
+        #return H
 
         # extract states and map
         x = eta[0:3]
@@ -277,17 +280,38 @@ class EKFSLAM:
         Rot = rotmat2d(x[2])
 
         # TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
-        delta_m = None
+        p_vx = x[0] * np.ones((1,len(m[1])))
+        p_vy = x[1] * np.ones((1,len(m[1])))
+        p_v = np.vstack([p_vx, p_vy])
+
+        offset = rotmat2d(x[2])@self.sensor_offset
+        offsetx = offset[0] * np.ones((1,len(m[1])))
+        offsety = offset[1] * np.ones((1,len(m[1])))
+        offset_v = np.vstack([offsetx, offsety])
+
+        delta_m = m - p_v - offset_v
 
         # TODO, (2, #measurements), each measured position in cartesian coordinates like
-        zc = None
+        zc = Rot @ delta_m 
         # [x coordinates;
         #  y coordinates]
 
-        zpred = None  # TODO (2, #measurements), predicted measurements, like
+        n_landmarks = len(zc[0])
+        zr = np.zeros(n_landmarks)
+        zpred_theta = np.zeros(n_landmarks)
+        zpred = np.zeros(2*n_landmarks)
+
+        for i in range(n_landmarks):
+            cx = zc[0][i]
+            cy = zc[1][i]
+            zr[i], zpred_theta[i] = cart2pol(cx,cy)
+            zpred[2*i] = zr[i]
+            zpred[2*i+1] = wrapToPi(zpred_theta[i])
+
+        #zpred = None  # TODO (2, #measurements), predicted measurements, like
         # [ranges;
         #  bearings]
-        zr = None  # TODO, ranges
+        #zr = None  # TODO, ranges
 
         Rpihalf = rotmat2d(np.pi / 2)
 
@@ -306,10 +330,23 @@ class EKFSLAM:
         # preallocate and update this for some speed gain if looping
         jac_z_cb = -np.eye(2, 3)
         for i in range(numM):  # But this whole loop can be vectorized
+            delta_mi = np.vstack([delta_m[0][i], delta_m[1][i]])
+            t = -Rpihalf @ delta_mi
+            jac_z_cb[0][2] = -(Rpihalf @ delta_mi)[0]
+            jac_z_cb[1][2] = -(Rpihalf @ delta_mi)[1]
             ind = 2 * i  # starting postion of the ith landmark into H
             # the inds slice for the ith landmark into H
             inds = slice(ind, ind + 2)
 
+            Hx1 = 1/EucNorm2Dvec(delta_mi)*delta_mi.T
+            Hx2 = np.zeros((1,1))
+            Hx3 = 1/EucNorm2Dvec(delta_mi)**2*delta_mi.T@Rpihalf
+            Hx4 = np.ones((1,1))
+            Hx[inds]  = -np.vstack([np.hstack([Hx1, Hx2]), np.hstack([Hx3, Hx4])])
+
+            Hm1 = Hx1
+            Hm2 = Hx3
+            Hm[(inds, inds)]  = np.vstack([Hm1, Hm2])
             # TODO: Set H or Hx and Hm here
 
         # TODO: You can set some assertions here to make sure that some of the structure in H is correct
