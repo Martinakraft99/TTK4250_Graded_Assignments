@@ -264,8 +264,8 @@ class EKFSLAM:
         np.ndarray, shape=(2 * #landmarks, 3 + 2 * #landmarks)
             the jacobian of h wrt. eta.
         """
-        H = solution.EKFSLAM.EKFSLAM.h_jac(self, eta)
-        return H
+        #H = solution.EKFSLAM.EKFSLAM.h_jac(self, eta)
+        #return H
 
         # extract states and map
         x = eta[0:3]
@@ -275,9 +275,10 @@ class EKFSLAM:
         numM = m.shape[1]
 
         Rot = rotmat2d(x[2])
+        x_world = Rot * x
 
         # TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
-        delta_m = None
+        delta_m = [m[j] - x_world for j in range(len(m))]
 
         # TODO, (2, #measurements), each measured position in cartesian coordinates like
         zc = None
