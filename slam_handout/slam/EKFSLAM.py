@@ -278,12 +278,12 @@ class EKFSLAM:
         x_world = Rot * x
 
         # TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
-        delta_m = [m[j] - x_world for j in range(len(m))]
+        delta_m = np.array([m[j] - x_world for j in range(len(m))])
 
         # TODO, (2, #measurements), each measured position in cartesian coordinates like
-        zc = None
         # [x coordinates;
         #  y coordinates]
+        zc = delta_m - Rot * self.sensor_offset
 
         zpred = None  # TODO (2, #measurements), predicted measurements, like
         # [ranges;
