@@ -4,7 +4,7 @@ from numpy import cos, float64,sin, ndarray, sqrt
 from dataclasses import dataclass, field
 from scipy.linalg import block_diag
 import scipy.linalg as la
-from slam_handout.slam.utils import wrapToPi
+from slam.utils import wrapToPi
 from utils import rotmat2d
 from JCBB import JCBB
 import utils
