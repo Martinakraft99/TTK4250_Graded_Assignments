@@ -267,8 +267,8 @@ class EKFSLAM:
         np.ndarray, shape=(2 * #landmarks, 3 + 2 * #landmarks)
             the jacobian of h wrt. eta.
         """
-        #H = solution.EKFSLAM.EKFSLAM.h_jac(self, eta)
-        #return H
+        H = solution.EKFSLAM.EKFSLAM.h_jac(self, eta)
+        return H
 
         # extract states and map
         x = eta[0:3]
