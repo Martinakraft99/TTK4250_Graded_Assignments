@@ -124,7 +124,7 @@ def main():
     NEESes = np.zeros((K, 3))
 
     # For consistency testing
-    alpha = 0.05
+    alpha = 0.95
 
     # init
     eta_pred[0] = poseGT[0]  # we start at the correct position for reference
@@ -149,10 +149,14 @@ def main():
         # Transpose is to stack measurements rowwise
         # z_k = z[k][0].T
 
-        eta_hat[k], P_hat[k], NIS[k], a[k] =  # TODO update
+        eta_hat[k], P_hat[k], NIS[k], a[k] = slam.update(
+            eta_pred[k], P_pred[k], z_k
+        )
 
         if k < K - 1:
-            eta_pred[k + 1], P_pred[k + 1] =  # TODO predict
+            eta_pred[k + 1], P_pred[k + 1] = slam.predict(
+                eta_hat[k], P_hat[k], odometry[k]
+            )
 
         assert (
             eta_hat[k].shape[0] == P_hat[k].shape[0]
@@ -169,7 +173,7 @@ def main():
             NISnorm[k] = 1
             CInorm[k].fill(1)
 
-        NEESes[k] =  # TODO, use provided function slam.NEESes
+        NEESes[k] = slam.NEESes(eta_hat[k][:3], P_hat[k][:3, :3], poseGT[k])
 
         if doAssoPlot and k > 0:
             axAsso.clear()

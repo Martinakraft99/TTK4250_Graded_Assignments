@@ -4,11 +4,13 @@ from numpy import cos, float64,sin, ndarray, sqrt
 from dataclasses import dataclass, field
 from scipy.linalg import block_diag
 import scipy.linalg as la
-from slam.utils import wrapToPi
+from utils import wrapToPi
 from utils import rotmat2d
 from JCBB import JCBB
 import utils
 import solution
+
+import sys
 
 
 def cart2pol(x, y):
@@ -137,8 +139,10 @@ class EKFSLAM:
         Tuple[np.ndarray, np.ndarray], shapes= (3 + 2*#landmarks,), (3 + 2*#landmarks,)*2
             predicted mean and covariance of eta.
         """
-        #etapred, P = solution.EKFSLAM.EKFSLAM.predict(self, eta, P, z_odo)
-
+        
+        etapred, P = solution.EKFSLAM.EKFSLAM.predict(self, eta, P, z_odo)
+        return etapred, P
+    
         # check inout matrix
         assert np.allclose(P, P.T), "EKFSLAM.predict: not symmetric P input"
         assert np.all(
@@ -615,8 +619,14 @@ class EKFSLAM:
             P_heading) == 0, "EKFSLAM.NEES: P_heading must be scalar"
 
         # NB: Needs to handle both vectors and scalars! Additionally, must handle division by zero
+        if np.linalg.cond(P) < sys.float_info.epsilon:
+            P = np.eye(3)
         NEES_all = d_x @ (np.linalg.solve(P, d_x))
+        
+        if np.linalg.cond(P_p) < sys.float_info.epsilon:
+            P_p = np.eye(2)
         NEES_pos = d_p @ (np.linalg.solve(P_p, d_p))
+
         try:
             NEES_heading = d_heading ** 2 / P_heading
         except ZeroDivisionError:
