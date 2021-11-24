@@ -95,16 +95,60 @@ def main():
 
     K = len(z)
     M = len(landmarks)
-
-    # %% Initilize
-    Q = np.diag([0.1, 0.1, 1 * np.pi / 180]) ** 2  # TODO tune
-    R = np.diag([0.1, 1 * np.pi / 180]) ** 2  # TODO tune
+    
+    # Tuning parameters
+    q_11 = 0.1
+    q_22 = q_11
+    q_33 = np.pi / 180
+    
+    r_11 = 0.1
+    r_22 = np.pi / 180
+    
+    alpha1 = 0.001
+    alpha2 = 0.0001
+    
+    ############################################################################
+    # Baseline tuning (the one provided)
+    ############################################################################
+    
+    Q = np.diag([q_11, q_22, q_33]) ** 2
+    R = np.diag([r_11, r_22]) ** 2
 
     # first is for joint compatibility, second is individual
-    JCBBalphas = np.array([0.001, 0.0001])  # TODO tune
+    JCBBalphas = np.array([alpha1, alpha2])
+    
+    ############################################################################
+    # NIS tuning
+    ############################################################################
+    
+    Q = np.diag([q_11, q_22, q_33 / 2]) ** 2
+    R = np.diag([0.55 * r_11, r_22]) ** 2
 
+    # first is for joint compatibility, second is individual
+    JCBBalphas = np.array([alpha1, 0.1 * alpha2])
+
+    ############################################################################
+    # Bad consistency (BC) tuning
+    ############################################################################
+    
+    Q = ((10) * np.diag([5 * q_11, 5 * q_22, 3 * q_33])) ** 2
+    R = ((2) * np.diag([r_11, r_22])) ** 2
+
+    # first is for joint compatibility, second is individual
+    JCBBalphas = np.array([alpha1, alpha2])
+
+    ############################################################################
+    # yyy tuning
+    ############################################################################
+    """
+    Q = np.diag([q_11, q_22, q_33]) ** 2  # TODO tune
+    R = np.diag([r_11, r_22]) ** 2  # TODO tune
+
+    # first is for joint compatibility, second is individual
+    JCBBalphas = np.array([alpha1, alpha2])  # TODO tune
+    """
+    
     doAsso = True
-
 
 # these can have a large effect on runtime either through the number of landmarks created
 # or by the size of the association search space.
@@ -135,7 +179,7 @@ def main():
     # plotting
 
     doAssoPlot = False
-    playMovie = True
+    playMovie = False
     if doAssoPlot:
         figAsso, axAsso = plt.subplots(num=1, clear=True)
 
@@ -212,9 +256,11 @@ def main():
     maxs += offsets
 
     fig2, ax2 = plt.subplots(num=2, clear=True)
+    
     # landmarks
     ax2.scatter(*landmarks.T, c="r", marker="^")
     ax2.scatter(*lmk_est_final.T, c="b", marker=".")
+    
     # Draw covariance ellipsis of measurements
     for l, lmk_l in enumerate(lmk_est_final):
         idxs = slice(3 + 2 * l, 3 + 2 * l + 2)
@@ -225,7 +271,8 @@ def main():
     ax2.plot(*poseGT.T[:2], c="r", label="gt")
     ax2.plot(*pose_est.T[:2], c="g", label="est")
     ax2.plot(*ellipse(pose_est[-1, :2], P_hat[N - 1][:2, :2], 5, 200).T, c="g")
-    ax2.set(title="results", xlim=(mins[0], maxs[0]), ylim=(mins[1], maxs[1]))
+    ax2.set(title=f"Associate {len(lmk_est_final)} measurements to {len(landmarks)} landmarks.",
+        xlim=(mins[0], maxs[0]), ylim=(mins[1], maxs[1]))
     ax2.axis("equal")
     ax2.grid()
 
