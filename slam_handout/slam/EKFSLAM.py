@@ -140,8 +140,8 @@ class EKFSLAM:
             predicted mean and covariance of eta.
         """
         
-        etapred, P = solution.EKFSLAM.EKFSLAM.predict(self, eta, P, z_odo)
-        return etapred, P
+        #etapred, P = solution.EKFSLAM.EKFSLAM.predict(self, eta, P, z_odo)
+        #return etapred, P
     
         # check inout matrix
         assert np.allclose(P, P.T), "EKFSLAM.predict: not symmetric P input"
@@ -260,101 +260,60 @@ class EKFSLAM:
 
     def h_jac(self, eta: np.ndarray) -> np.ndarray:
         """Calculate the jacobian of h.
-
         Parameters
         ----------
         eta : np.ndarray, shape=(3 + 2 * #landmarks,)
             The robot state and landmarks stacked.
-
         Returns
         -------
         np.ndarray, shape=(2 * #landmarks, 3 + 2 * #landmarks)
             the jacobian of h wrt. eta.
         """
-        H = solution.EKFSLAM.EKFSLAM.h_jac(self, eta)
-        return H
-
+        #H = solution.EKFSLAM.EKFSLAM.h_jac(self, eta)
+        #return H
         # extract states and map
         x = eta[0:3]
         # reshape map (2, #landmarks), m[j] is the jth landmark
         m = eta[3:].reshape((-1, 2)).T
-
         numM = m.shape[1]
-
         Rot = rotmat2d(x[2])
-
         # TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
-        p_vx = x[0] * np.ones((1,len(m[1])))
-        p_vy = x[1] * np.ones((1,len(m[1])))
-        p_v = np.vstack([p_vx, p_vy])
-
-        offset = rotmat2d(x[2])@self.sensor_offset
-        offsetx = offset[0] * np.ones((1,len(m[1])))
-        offsety = offset[1] * np.ones((1,len(m[1])))
-        offset_v = np.vstack([offsetx, offsety])
-
-        delta_m = m - p_v - offset_v
-
+        delta_m = m - x[:2, None]
         # TODO, (2, #measurements), each measured position in cartesian coordinates like
-        zc = Rot @ delta_m 
+        lever_arm = Rot @ self.sensor_offset
+        zc = delta_m - lever_arm[:,None]
+        zc_norm = la.norm(zc, ord=2, axis=0)
         # [x coordinates;
         #  y coordinates]
-
-        n_landmarks = len(zc[0])
-        zr = np.zeros(n_landmarks)
-        zpred_theta = np.zeros(n_landmarks)
-        zpred = np.zeros(2*n_landmarks)
-
-        for i in range(n_landmarks):
-            cx = zc[0][i]
-            cy = zc[1][i]
-            zr[i], zpred_theta[i] = cart2pol(cx,cy)
-            zpred[2*i] = zr[i]
-            zpred[2*i+1] = wrapToPi(zpred_theta[i])
-
-        #zpred = None  # TODO (2, #measurements), predicted measurements, like
+        zpred = self.h(eta).reshape(2, -1, order='F') # TODO (2, #measurements), predicted measurements, like
         # [ranges;
         #  bearings]
-        #zr = None  # TODO, ranges
-
+        zr = zpred[1,:]  # TODO, ranges
         Rpihalf = rotmat2d(np.pi / 2)
-
         # In what follows you can be clever and avoid making this for all the landmarks you _know_
         # you will not detect (the maximum range should be available from the data).
         # But keep it simple to begin with.
-
         # Allocate H and set submatrices as memory views into H
         # You may or may not want to do this like this
         # TODO, see eq (11.15), (11.16), (11.17)
         H = np.zeros((2 * numM, 3 + 2 * numM))
         Hx = H[:, :3]  # slice view, setting elements of Hx will set H as well
         Hm = H[:, 3:]  # slice view, setting elements of Hm will set H as well
-
         # proposed way is to go through landmarks one by one
         # preallocate and update this for some speed gain if looping
         jac_z_cb = -np.eye(2, 3)
         for i in range(numM):  # But this whole loop can be vectorized
-            delta_mi = np.vstack([delta_m[0][i], delta_m[1][i]])
-            t = -Rpihalf @ delta_mi
-            jac_z_cb[0][2] = -(Rpihalf @ delta_mi)[0]
-            jac_z_cb[1][2] = -(Rpihalf @ delta_mi)[1]
             ind = 2 * i  # starting postion of the ith landmark into H
-            # the inds slice for the ith landmark into H
-            inds = slice(ind, ind + 2)
-
-            Hx1 = 1/EucNorm2Dvec(delta_mi)*delta_mi.T
-            Hx2 = np.zeros((1,1))
-            Hx3 = 1/EucNorm2Dvec(delta_mi)**2*delta_mi.T@Rpihalf
-            Hx4 = np.ones((1,1))
-            Hx[inds]  = -np.vstack([np.hstack([Hx1, Hx2]), np.hstack([Hx3, Hx4])])
-
-            Hm1 = Hx1
-            Hm2 = Hx3
-            Hm[(inds, inds)]  = np.vstack([Hm1, Hm2])
+            inds = slice(ind, ind + 2) # the inds slice for the ith landmark into H
             # TODO: Set H or Hx and Hm here
-
+            jac_z_cb[:,2] = -Rpihalf @ delta_m[:,i]
+            Hx[ind] = zc[:,i].T/zc_norm[i] @ jac_z_cb
+            Hx[ind+1] = zc[:,i].T @ Rpihalf.T/zc_norm[i]**2 @ jac_z_cb
+            Hm[ind, inds]   = zc_norm[i] * zc[:,i].T/zc_norm[i]**2
+            Hm[ind+1, inds] = -zc[:,i].T @ Rpihalf/zc_norm[i]**2 #NEGATIVE?
         # TODO: You can set some assertions here to make sure that some of the structure in H is correct
         return H
+
     def add_landmarks(
         self, eta: np.ndarray, P: np.ndarray, z: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
