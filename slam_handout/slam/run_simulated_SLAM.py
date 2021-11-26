@@ -1,4 +1,5 @@
 # %% Imports
+from numpy.core.records import array
 from plotting import ellipse
 from EKFSLAM import EKFSLAM
 from typing import List, Optional
@@ -120,32 +121,32 @@ def main():
     ############################################################################
     # NIS tuning
     ############################################################################
-    
+    """    
     Q = np.diag([q_11, q_22, q_33 / 2]) ** 2
     R = np.diag([0.55 * r_11, r_22]) ** 2
 
     # first is for joint compatibility, second is individual
     JCBBalphas = np.array([alpha1, 0.1 * alpha2])
-
+    """
     ############################################################################
     # Bad consistency (BC) tuning
     ############################################################################
-    
+    """
     Q = ((10) * np.diag([5 * q_11, 5 * q_22, 3 * q_33])) ** 2
     R = ((2) * np.diag([r_11, r_22])) ** 2
 
     # first is for joint compatibility, second is individual
     JCBBalphas = np.array([alpha1, alpha2])
-
+    """
     ############################################################################
-    # yyy tuning
+    # JCBB tuning
     ############################################################################
     """
-    Q = np.diag([q_11, q_22, q_33]) ** 2  # TODO tune
-    R = np.diag([r_11, r_22]) ** 2  # TODO tune
+    Q = np.diag([q_11, q_22, q_33 / 2]) ** 2
+    R = np.diag([0.55 * r_11, r_22]) ** 2
 
     # first is for joint compatibility, second is individual
-    JCBBalphas = np.array([alpha1, alpha2])  # TODO tune
+    JCBBalphas = np.array([100*alpha1, 100 * 0.1 * alpha2])
     """
     
     doAsso = True
